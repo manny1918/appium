@@ -34,6 +34,18 @@ jobs:
           script: |
             echo "Android emulator is ready"
 
+      - name: Wait for emulator to boot
+        run: |
+          adb devices
+          echo "Waiting for emulator to fully boot..."
+          boot_completed=""
+          until [ "$boot_completed" = "1" ]; do
+            boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>&1 || echo "0")
+            echo "Boot status: $boot_completed"
+            sleep 5
+          done
+          echo "Emulator booted!"
+
       - name: Start Appium
         run: |
           npm install -g appium
