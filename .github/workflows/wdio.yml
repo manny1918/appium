@@ -27,16 +27,24 @@ jobs:
 
       - name: Start Android Emulator
         run: |
-          nohup emulator -avd test -no-window -no-audio -no-snapshot -gpu off > /dev/null 2>&1 &
-          echo "Waiting for emulator to start..."
-          adb wait-for-device
-          boot_completed=""
-          until [[ "$boot_completed" == "1" ]]; do
+          echo "Starting emulator..."
+          emulator -avd test -no-window -no-audio -no-snapshot -gpu off -verbose > emulator.log 2>&1 &
+          
+          echo "Waiting for emulator to boot..."
+          timeout=300
+          elapsed=0
+          until adb shell getprop sys.boot_completed 2>/dev/null | grep -m 1 "1"; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "⛔ Timeout waiting for emulator to boot after $timeout seconds."
+              echo "--- Emulator log ---"
+              cat emulator.log
+              exit 1
+            fi
             sleep 5
-            boot_completed=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-            echo "Boot status: $boot_completed"
+            elapsed=$((elapsed + 5))
+            echo "Still waiting... ($elapsed seconds)"
           done
-          echo "Emulator booted!"
+          echo "✅ Emulator booted successfully."
 
       - name: Run Tests
         run: npm run wdio
