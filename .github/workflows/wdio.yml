@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Android SDK
+      - name: Start emulator and run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
@@ -32,29 +32,24 @@ jobs:
           arch: x86_64
           profile: pixel_5
           script: |
-            echo "Android emulator is ready"
+            echo "✅ Emulator is ready"
+            adb devices
 
-      - name: Wait for emulator to boot
-        run: |
-          adb devices
-          echo "Waiting for emulator to fully boot..."
-          boot_completed=""
-          until [ "$boot_completed" = "1" ]; do
-            boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>&1 || echo "0")
-            echo "Boot status: $boot_completed"
-            sleep 5
-          done
-          echo "Emulator booted!"
+            echo "🕒 Waiting for emulator to fully boot..."
+            boot_completed=""
+            until [ "$boot_completed" = "1" ]; do
+              boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>&1 || echo "0")
+              echo "Boot status: $boot_completed"
+              sleep 5
+            done
+            echo "✅ Emulator booted!"
 
-      - name: Start Appium
-        run: |
-          npm install -g appium
-          nohup appium --base-path /wd/hub &
+            npm install -g appium
+            nohup appium --base-path /wd/hub &
 
-      - name: Wait for Appium to start
-        run: |
-          sleep 10
-          curl http://localhost:4723/wd/hub/status
+            echo "⏳ Waiting for Appium to start..."
+            sleep 10
+            curl http://localhost:4723/wd/hub/status
 
-      - name: Run Tests
-        run: npm run wdio
+            echo "🚀 Running tests..."
+            npm run wdio
