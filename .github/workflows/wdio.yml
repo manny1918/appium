@@ -24,32 +24,49 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start emulator and run tests
+      - name: Start Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
           target: google_apis_playstore
           arch: x86_64
           profile: pixel_5
+          disable-animations: true
           script: |
-            echo "✅ Emulator is ready"
-            adb devices
+            echo "Android emulator launched"
 
-            echo "🕒 Waiting for emulator to fully boot..."
-            boot_completed=""
-            until [ "$boot_completed" = "1" ]; do
-              boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>&1 || echo "0")
-              echo "Boot status: $boot_completed"
-              sleep 5
-            done
-            echo "✅ Emulator booted!"
+      - name: Restart ADB
+        run: |
+          adb kill-server
+          adb start-server
+          adb devices
 
-            npm install -g appium
-            nohup appium --base-path /wd/hub &
-
-            echo "⏳ Waiting for Appium to start..."
+      - name: Wait for emulator to fully boot
+        run: |
+          echo "Waiting for emulator to fully boot..."
+          boot_completed=""
+          retry=0
+          until [[ "$boot_completed" = "1" || $retry -ge 30 ]]; do
+            boot_completed=$(adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            echo "Boot status: $boot_completed"
             sleep 10
-            curl http://localhost:4723/wd/hub/status
+            retry=$((retry+1))
+          done
+          if [ "$boot_completed" != "1" ]; then
+            echo "Emulator failed to boot in time"
+            exit 1
+          fi
+          echo "Emulator booted successfully"
 
-            echo "🚀 Running tests..."
-            npm run wdio
+      - name: Start Appium
+        run: |
+          npm install -g appium
+          nohup appium --base-path /wd/hub &
+
+      - name: Wait for Appium to start
+        run: |
+          sleep 10
+          curl http://localhost:4723/wd/hub/status
+
+      - name: Run Tests
+        run: npm run wdio
