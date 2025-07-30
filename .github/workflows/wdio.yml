@@ -1,4 +1,4 @@
-name: Run Android Emulator on PR
+name: Run Android Emulator
 on: [push, pull_request]
 
 jobs:
